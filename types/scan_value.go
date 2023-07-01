@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-pg/pg/v10/internal"
-	"github.com/go-pg/pg/v10/pgjson"
+	"uw/upg/extra/upgjson"
+	"uw/upg/internal"
 )
 
 var (
@@ -27,7 +27,7 @@ type ScannerFunc func(reflect.Value, Reader, int) error
 
 var valueScanners []ScannerFunc
 
-//nolint
+// nolint
 func init() {
 	valueScanners = []ScannerFunc{
 		reflect.Bool:          scanBoolValue,
@@ -257,7 +257,7 @@ func scanJSONValue(v reflect.Value, rd Reader, n int) error {
 		return nil
 	}
 
-	dec := pgjson.NewDecoder(rd)
+	dec := upgjson.NewDecoder(rd)
 	return dec.Decode(v.Addr().Interface())
 }
 

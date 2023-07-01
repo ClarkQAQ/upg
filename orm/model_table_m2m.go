@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-pg/pg/v10/internal/pool"
-	"github.com/go-pg/pg/v10/types"
+	"uw/upg/internal/pool"
+	"uw/upg/types"
 )
 
 type m2mModel struct {

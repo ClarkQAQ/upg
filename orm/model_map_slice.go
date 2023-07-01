@@ -42,4 +42,4 @@ func (m *mapSliceModel) NextColumnScanner() ColumnScanner {
 	return m
 }
 
-func (mapSliceModel) useQueryOne() {} //nolint:unused
+// func (mapSliceModel) useQueryOne() {} //nolint:unused

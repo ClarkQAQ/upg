@@ -1,4 +1,4 @@
 /*
 pg provides PostgreSQL client.
 */
-package pg
+package upg

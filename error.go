@@ -1,9 +1,9 @@
-package pg
+package upg
 
 import (
 	"net"
 
-	"github.com/go-pg/pg/v10/internal"
+	"uw/upg/internal"
 )
 
 // ErrNoRows is returned by QueryOne and ExecOne when query returned zero rows

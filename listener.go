@@ -1,4 +1,4 @@
-package pg
+package upg
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-pg/pg/v10/internal"
-	"github.com/go-pg/pg/v10/internal/pool"
-	"github.com/go-pg/pg/v10/types"
+	"uw/upg/internal"
+	"uw/upg/internal/pool"
+	"uw/upg/types"
 )
 
 const gopgChannel = "gopg:ping"

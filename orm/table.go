@@ -11,15 +11,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jinzhu/inflection"
-	"github.com/vmihailenco/tagparser"
+	"uw/upg/internal/inflection"
 
-	"github.com/go-pg/zerochecker"
+	"uw/upg/internal/zerochecker"
 
-	"github.com/go-pg/pg/v10/internal"
-	"github.com/go-pg/pg/v10/internal/pool"
-	"github.com/go-pg/pg/v10/pgjson"
-	"github.com/go-pg/pg/v10/types"
+	"uw/upg/extra/upgjson"
+	"uw/upg/internal"
+	"uw/upg/internal/pool"
+	"uw/upg/internal/tagparser"
+	"uw/upg/types"
 )
 
 const (
@@ -292,7 +292,7 @@ func (t *Table) addFields(typ reflect.Type, baseIndex []int) {
 	}
 }
 
-//nolint
+// nolint
 func (t *Table) newField(f reflect.StructField, index []int) *Field {
 	pgTag := tagparser.Parse(f.Tag.Get("pg"))
 
@@ -481,9 +481,6 @@ func (t *Table) newField(f reflect.StructField, index []int) *Field {
 			field.append = appendUintAsInt
 		}
 		field.scan = types.Scanner(f.Type)
-	} else if _, ok := pgTag.Options["msgpack"]; ok {
-		field.append = msgpackAppender(f.Type)
-		field.scan = msgpackScanner(f.Type)
 	} else {
 		field.append = types.Appender(f.Type)
 		field.scan = types.Scanner(f.Type)
@@ -944,7 +941,7 @@ func (t *Table) mustM2MRelation(field *Field, pgTag *tagparser.Tag) bool {
 	return true
 }
 
-//nolint
+// nolint
 func (t *Table) tryRelationSlice(field *Field, pgTag *tagparser.Tag) bool {
 	if t.tryM2MRelation(field, pgTag) {
 		internal.Deprecated.Printf(
@@ -1430,7 +1427,7 @@ func scanJSONValue(v reflect.Value, rd types.Reader, n int) error {
 		return nil
 	}
 
-	dec := pgjson.NewDecoder(rd)
+	dec := upgjson.NewDecoder(rd)
 	dec.UseNumber()
 	return dec.Decode(v.Addr().Interface())
 }

@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/tmthrgd/go-hex"
+	"uw/pkg/hex"
 
-	"github.com/go-pg/pg/v10/internal"
+	"uw/upg/internal"
 )
 
 func Scan(v interface{}, rd Reader, n int) error {

@@ -1,14 +1,14 @@
-package pg
+package upg
 
 import (
 	"context"
 	"io"
 	"time"
 
-	"github.com/go-pg/pg/v10/internal"
-	"github.com/go-pg/pg/v10/internal/pool"
-	"github.com/go-pg/pg/v10/orm"
-	"github.com/go-pg/pg/v10/types"
+	"uw/upg/internal"
+	"uw/upg/internal/pool"
+	"uw/upg/orm"
+	"uw/upg/types"
 )
 
 type baseDB struct {

@@ -1,4 +1,4 @@
-package pg
+package upg
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-pg/pg/v10/internal/pool"
+	"uw/upg/internal/pool"
 )
 
 // Options contains database connection options.

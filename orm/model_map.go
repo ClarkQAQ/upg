@@ -1,7 +1,7 @@
 package orm
 
 import (
-	"github.com/go-pg/pg/v10/types"
+	"uw/upg/types"
 )
 
 type mapModel struct {

@@ -1,4 +1,4 @@
-package pg
+package upg
 
 import (
 	"bufio"
@@ -12,12 +12,12 @@ import (
 	"io"
 	"strings"
 
-	"mellium.im/sasl"
+	"uw/pkg/sasl"
 
-	"github.com/go-pg/pg/v10/internal"
-	"github.com/go-pg/pg/v10/internal/pool"
-	"github.com/go-pg/pg/v10/orm"
-	"github.com/go-pg/pg/v10/types"
+	"uw/upg/internal"
+	"uw/upg/internal/pool"
+	"uw/upg/orm"
+	"uw/upg/types"
 )
 
 // https://www.postgresql.org/docs/current/protocol-message-formats.html

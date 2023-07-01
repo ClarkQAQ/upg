@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vmihailenco/bufpool"
+	"uw/upg/internal/bufpool"
 
-	"github.com/go-pg/pg/v10/internal"
-	"github.com/go-pg/pg/v10/pgjson"
+	"uw/upg/extra/upgjson"
+	"uw/upg/internal"
 )
 
 var (
@@ -24,7 +24,7 @@ type AppenderFunc func([]byte, reflect.Value, int) []byte
 
 var appenders []AppenderFunc
 
-//nolint
+// nolint
 func init() {
 	appenders = []AppenderFunc{
 		reflect.Bool:          appendBoolValue,
@@ -200,7 +200,7 @@ func appendJSONValue(b []byte, v reflect.Value, flags int) []byte {
 	buf := jsonPool.Get()
 	defer jsonPool.Put(buf)
 
-	if err := pgjson.NewEncoder(buf).Encode(v.Interface()); err != nil {
+	if err := upgjson.NewEncoder(buf).Encode(v.Interface()); err != nil {
 		return AppendError(b, err)
 	}
 

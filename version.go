@@ -1,4 +1,4 @@
-package pg
+package upg
 
 // Version is the current release version.
 func Version() string {

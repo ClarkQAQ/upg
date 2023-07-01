@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	fasthex "github.com/tmthrgd/go-hex"
+	fasthex "uw/pkg/hex"
 )
 
 type HexEncoder struct {

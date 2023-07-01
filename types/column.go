@@ -3,8 +3,8 @@ package types
 import (
 	"encoding/json"
 
-	"github.com/go-pg/pg/v10/internal/pool"
-	"github.com/go-pg/pg/v10/pgjson"
+	"uw/upg/extra/upgjson"
+	"uw/upg/internal/pool"
 )
 
 const (
@@ -47,7 +47,7 @@ func (v RawValue) AppendValue(b []byte, flags int) ([]byte, error) {
 }
 
 func (v RawValue) MarshalJSON() ([]byte, error) {
-	return pgjson.Marshal(v.Value)
+	return upgjson.Marshal(v.Value)
 }
 
 func ReadColumnValue(col ColumnInfo, rd Reader, n int) (interface{}, error) {

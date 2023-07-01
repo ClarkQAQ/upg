@@ -7,7 +7,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/tmthrgd/go-hex"
+	"uw/pkg/hex"
 )
 
 func Append(b []byte, v interface{}, flags int) []byte {

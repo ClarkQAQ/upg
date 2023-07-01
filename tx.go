@@ -1,4 +1,4 @@
-package pg
+package upg
 
 import (
 	"context"
@@ -7,9 +7,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/go-pg/pg/v10/internal"
-	"github.com/go-pg/pg/v10/internal/pool"
-	"github.com/go-pg/pg/v10/orm"
+	"uw/upg/internal"
+	"uw/upg/internal/pool"
+	"uw/upg/orm"
 )
 
 // ErrTxDone is returned by any operation that is performed on a transaction

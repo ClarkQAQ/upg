@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-pg/zerochecker"
+	"uw/upg/internal/zerochecker"
 
-	"github.com/go-pg/pg/v10/types"
+	"uw/upg/types"
 )
 
 const (

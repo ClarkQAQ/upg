@@ -1,11 +1,11 @@
-package pg
+package upg
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"github.com/go-pg/pg/v10/orm"
+	"uw/upg/orm"
 )
 
 type (
