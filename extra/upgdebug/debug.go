@@ -120,18 +120,19 @@ func (h *QueryHook) AfterQuery(ctx context.Context, evt *upg.QueryEvent) error {
 	}
 
 	if evt.Err != nil {
-		h.log.Printf("[upg] [%s] %s\r\n[%s] %s"+h.emptyLineParse(),
-			time.Since(evt.StartTime), evt.Query, h.ansiCode(ulog.ANSI.Red, evt.Err.Error()))
+		h.log.Printf("[upg] [%s] [%s] %s\r\n"+h.emptyLineParse(),
+			time.Since(evt.StartTime), h.ansiCode(ulog.ANSI.Red, evt.Err.Error()), evt.Query)
 		return nil
 	}
 
 	if evt.Result != nil {
-		h.log.Printf("[upg] %s (%d)\r\n%s"+h.emptyLineParse(),
-			time.Since(evt.StartTime), evt.Result.RowsAffected(), evt.Query)
+		h.log.Printf("[upg] [%s] (%d/%d) %s"+h.emptyLineParse(),
+			time.Since(evt.StartTime), evt.Result.RowsAffected(),
+			evt.Result.RowsReturned(), evt.Query)
 		return nil
 	}
 
-	h.log.Printf("[upg] [%s] %s\r\n%s"+h.emptyLineParse(),
+	h.log.Printf("[upg] [%s] %s"+h.emptyLineParse(),
 		time.Since(evt.StartTime), evt.Query)
 	return nil
 }
