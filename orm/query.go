@@ -830,6 +830,10 @@ func (q *Query) Last() error {
 	return q.OrderExpr(internal.BytesToString(b)).Limit(1).Select()
 }
 
+func (q *Query) Scan(values ...interface{}) error {
+	return q.Select(values...)
+}
+
 // Select selects the model.
 func (q *Query) Select(values ...interface{}) error {
 	if q.stickyErr != nil {
@@ -869,7 +873,7 @@ func (q *Query) newModel(values []interface{}) (Model, error) {
 }
 
 func (q *Query) query(ctx context.Context, model Model, query interface{}) (Result, error) {
-	if _, ok := model.(useQueryOne); ok {
+	if uqo, ok := model.(useQueryOne); ok && uqo.useQueryOne() {
 		return q.db.QueryOneContext(ctx, model, query, q.tableModel)
 	}
 	return q.db.QueryContext(ctx, model, query, q.tableModel)

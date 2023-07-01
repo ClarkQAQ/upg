@@ -519,6 +519,15 @@ func (db *baseDB) ModelContext(c context.Context, model ...interface{}) *Query {
 	return orm.NewQueryContext(c, db.db, model...)
 }
 
+// Model returns new query for the table name.
+func (db *baseDB) Table(tables ...string) *Query {
+	return orm.NewQuery(db.db).Table(tables...)
+}
+
+func (db *baseDB) TableContext(c context.Context, tables ...string) *Query {
+	return orm.NewQueryContext(c, db.db).Table(tables...)
+}
+
 func (db *baseDB) Formatter() orm.QueryFormatter {
 	return db.fmter
 }
