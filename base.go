@@ -263,29 +263,6 @@ func (db *baseDB) exec(ctx context.Context, query interface{}, params ...interfa
 	return res, lastErr
 }
 
-// ExecOne acts like Exec, but query must affect only one row. It
-// returns ErrNoRows error when query returns zero rows or
-// ErrMultiRows when query returns multiple rows.
-func (db *baseDB) ExecOne(query interface{}, params ...interface{}) (Result, error) {
-	return db.execOne(db.db.Context(), query, params...)
-}
-
-func (db *baseDB) ExecOneContext(ctx context.Context, query interface{}, params ...interface{}) (Result, error) {
-	return db.execOne(ctx, query, params...)
-}
-
-func (db *baseDB) execOne(c context.Context, query interface{}, params ...interface{}) (Result, error) {
-	res, err := db.ExecContext(c, query, params...)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := internal.AssertOneRow(res.RowsAffected()); err != nil {
-		return nil, err
-	}
-	return res, nil
-}
-
 // Query executes a query that returns rows, typically a SELECT.
 // The params are for any placeholders in the query.
 func (db *baseDB) Query(model, query interface{}, params ...interface{}) (res Result, err error) {
@@ -333,31 +310,6 @@ func (db *baseDB) query(ctx context.Context, model, query interface{}, params ..
 	return res, lastErr
 }
 
-// QueryOne acts like Query, but query must return only one row. It
-// returns ErrNoRows error when query returns zero rows or
-// ErrMultiRows when query returns multiple rows.
-func (db *baseDB) QueryOne(model, query interface{}, params ...interface{}) (Result, error) {
-	return db.queryOne(db.db.Context(), model, query, params...)
-}
-
-func (db *baseDB) QueryOneContext(
-	ctx context.Context, model, query interface{}, params ...interface{},
-) (Result, error) {
-	return db.queryOne(ctx, model, query, params...)
-}
-
-func (db *baseDB) queryOne(ctx context.Context, model, query interface{}, params ...interface{}) (Result, error) {
-	res, err := db.QueryContext(ctx, model, query, params...)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := internal.AssertOneRow(res.RowsAffected()); err != nil {
-		return nil, err
-	}
-	return res, nil
-}
-
 // CopyFrom copies data from reader to a table.
 func (db *baseDB) CopyFrom(r io.Reader, query interface{}, params ...interface{}) (res Result, err error) {
 	c := db.db.Context()
@@ -381,12 +333,7 @@ func (db *baseDB) copyFrom(
 		return nil, err
 	}
 
-	var model interface{}
-	if len(params) > 0 {
-		model, _ = params[len(params)-1].(orm.TableModel)
-	}
-
-	ctx, evt, err = db.beforeQuery(ctx, db.db, model, query, params, wb.Query())
+	ctx, evt, err = db.beforeQuery(ctx, db.db, nil, query, params, wb.Query())
 	if err != nil {
 		return nil, err
 	}
@@ -463,12 +410,7 @@ func (db *baseDB) copyTo(
 		return nil, err
 	}
 
-	var model interface{}
-	if len(params) > 0 {
-		model, _ = params[len(params)-1].(orm.TableModel)
-	}
-
-	ctx, evt, err = db.beforeQuery(ctx, db.db, model, query, params, wb.Query())
+	ctx, evt, err = db.beforeQuery(ctx, db.db, nil, query, params, wb.Query())
 	if err != nil {
 		return nil, err
 	}
@@ -510,22 +452,13 @@ func (db *baseDB) Ping(ctx context.Context) error {
 	return err
 }
 
-// Model returns new query for the model.
-func (db *baseDB) Model(model ...interface{}) *Query {
-	return orm.NewQuery(db.db, model...)
-}
-
-func (db *baseDB) ModelContext(c context.Context, model ...interface{}) *Query {
-	return orm.NewQueryContext(c, db.db, model...)
-}
-
 // Model returns new query for the table name.
-func (db *baseDB) Table(tables ...string) *Query {
-	return orm.NewQuery(db.db).Table(tables...)
+func (db *baseDB) Table(table string, alias ...string) *Query {
+	return orm.NewQuery(db.db).Table(table, alias...)
 }
 
-func (db *baseDB) TableContext(c context.Context, tables ...string) *Query {
-	return orm.NewQueryContext(c, db.db).Table(tables...)
+func (db *baseDB) TableContext(c context.Context, table string, alias ...string) *Query {
+	return orm.NewQueryContext(c, db.db).Table(table, alias...)
 }
 
 func (db *baseDB) Formatter() orm.QueryFormatter {

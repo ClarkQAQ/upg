@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 
 	"uw/upg/types"
 )
 
 type InsertQuery struct {
-	q               *Query
-	returningFields []*Field
-	placeholder     bool
+	q           *Query
+	placeholder bool
 }
 
 var _ QueryCommand = (*InsertQuery)(nil)
@@ -69,7 +69,7 @@ func (q *InsertQuery) AppendQuery(fmter QueryFormatter, b []byte) (_ []byte, err
 
 	b = append(b, "INSERT INTO "...)
 	if q.q.onConflict != nil {
-		b, err = q.q.appendFirstTableWithAlias(fmter, b)
+		b, err = q.q.appendFirstTable(fmter, b)
 	} else {
 		b, err = q.q.appendFirstTable(fmter, b)
 	}
@@ -95,17 +95,6 @@ func (q *InsertQuery) AppendQuery(fmter QueryFormatter, b []byte) (_ []byte, err
 				if err != nil {
 					return nil, err
 				}
-			} else {
-				fields, err := q.q.getDataFields()
-				if err != nil {
-					return nil, err
-				}
-
-				if len(fields) == 0 {
-					fields = q.q.tableModel.Table().DataFields
-				}
-
-				b = q.appendSetExcluded(b, fields)
 			}
 
 			if len(q.q.updWhere) > 0 {
@@ -123,8 +112,6 @@ func (q *InsertQuery) AppendQuery(fmter QueryFormatter, b []byte) (_ []byte, err
 		if err != nil {
 			return nil, err
 		}
-	} else if len(q.returningFields) > 0 {
-		b = appendReturningFields(b, q.returningFields)
 	}
 
 	return b, q.q.stickyErr
@@ -150,42 +137,55 @@ func (q *InsertQuery) appendColumnsValues(fmter QueryFormatter, b []byte) (_ []b
 		return b, nil
 	}
 
-	if m, ok := q.q.model.(*mapModel); ok {
-		return q.appendMapColumnsValues(b, m.m), nil
+	switch val := q.q.model.(type) {
+	case *mapModel:
+		return q.appendMapColumnsValues(b, val.m), nil
+	case *structTableModel:
+		return q.appendStructColumnsValues(b, val.value)
+	default:
+		return b, fmt.Errorf("pg: can't append set for %T", q.q.model)
 	}
+}
 
-	if !q.q.hasTableModel() {
-		return nil, errModelNil
-	}
-
-	fields, err := q.q.getFields()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(fields) == 0 {
-		fields = q.q.tableModel.Table().Fields
-	}
-	value := q.q.tableModel.Value()
+func (q *InsertQuery) appendStructColumnsValues(b []byte, strct reflect.Value) (_ []byte, e error) {
+	strctp := strct.Type()
+	index := make([]int, 0, strctp.NumField())
 
 	b = append(b, " ("...)
-	b = q.appendColumns(b, fields)
-	b = append(b, ") VALUES ("...)
-	if m, ok := q.q.tableModel.(*sliceTableModel); ok {
-		if m.sliceLen == 0 {
-			err = fmt.Errorf("pg: can't bulk-insert empty slice %s", value.Type())
-			return nil, err
-		}
-		b, err = q.appendSliceValues(fmter, b, fields, value)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		b, err = q.appendValues(fmter, b, fields, value)
-		if err != nil {
-			return nil, err
+
+	for i := 0; i < strctp.NumField(); i++ {
+		tp := strctp.Field(i)
+		if tag := tp.Tag.Get("db"); tag != "-" {
+			if len(tag) < 1 {
+				tag = strings.ToLower(tp.Name)
+			}
+			if len(index) > 0 {
+				b = append(b, ", "...)
+			}
+			b = types.AppendIdent(b, tag, 1)
+			index = append(index, i)
 		}
 	}
+
+	b = append(b, ") VALUES ("...)
+
+	for i := 0; i < len(index); i++ {
+		if i > 0 {
+			b = append(b, ", "...)
+		}
+		if q.placeholder {
+			b = append(b, '?')
+
+			continue
+		}
+
+		if f := strct.Field(index[i]); f.CanInterface() {
+			b = types.Append(b, f.Interface(), 1)
+		} else {
+			b = types.Append(b, nil, 1)
+		}
+	}
+
 	b = append(b, ")"...)
 
 	return b, nil
@@ -223,123 +223,5 @@ func (q *InsertQuery) appendMapColumnsValues(b []byte, m map[string]interface{})
 
 	b = append(b, ")"...)
 
-	return b
-}
-
-func (q *InsertQuery) appendValues(
-	fmter QueryFormatter, b []byte, fields []*Field, strct reflect.Value,
-) (_ []byte, err error) {
-	for i, f := range fields {
-		if i > 0 {
-			b = append(b, ", "...)
-		}
-
-		app, ok := q.q.modelValues[f.SQLName]
-		if ok {
-			b, err = app.AppendQuery(fmter, b)
-			if err != nil {
-				return nil, err
-			}
-			q.addReturningField(f)
-			continue
-		}
-
-		switch {
-		case q.placeholder:
-			b = append(b, '?')
-		case (f.Default != "" || f.NullZero()) && f.HasZeroValue(strct):
-			b = append(b, "DEFAULT"...)
-			q.addReturningField(f)
-		default:
-			b = f.AppendValue(b, strct, 1)
-		}
-	}
-
-	for i, v := range q.q.extraValues {
-		if i > 0 || len(fields) > 0 {
-			b = append(b, ", "...)
-		}
-
-		b, err = v.value.AppendQuery(fmter, b)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return b, nil
-}
-
-func (q *InsertQuery) appendSliceValues(
-	fmter QueryFormatter, b []byte, fields []*Field, slice reflect.Value,
-) (_ []byte, err error) {
-	if q.placeholder {
-		return q.appendValues(fmter, b, fields, reflect.Value{})
-	}
-
-	sliceLen := slice.Len()
-	for i := 0; i < sliceLen; i++ {
-		if i > 0 {
-			b = append(b, "), ("...)
-		}
-		el := indirect(slice.Index(i))
-		b, err = q.appendValues(fmter, b, fields, el)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	for i, v := range q.q.extraValues {
-		if i > 0 || len(fields) > 0 {
-			b = append(b, ", "...)
-		}
-
-		b, err = v.value.AppendQuery(fmter, b)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return b, nil
-}
-
-func (q *InsertQuery) addReturningField(field *Field) {
-	if len(q.q.returning) > 0 {
-		return
-	}
-	for _, f := range q.returningFields {
-		if f == field {
-			return
-		}
-	}
-	q.returningFields = append(q.returningFields, field)
-}
-
-func (q *InsertQuery) appendSetExcluded(b []byte, fields []*Field) []byte {
-	b = append(b, " SET "...)
-	for i, f := range fields {
-		if i > 0 {
-			b = append(b, ", "...)
-		}
-		b = append(b, f.Column...)
-		b = append(b, " = EXCLUDED."...)
-		b = append(b, f.Column...)
-	}
-	return b
-}
-
-func (q *InsertQuery) appendColumns(b []byte, fields []*Field) []byte {
-	b = appendColumns(b, "", fields)
-	for i, v := range q.q.extraValues {
-		if i > 0 || len(fields) > 0 {
-			b = append(b, ", "...)
-		}
-		b = types.AppendIdent(b, v.column, 1)
-	}
-	return b
-}
-
-func appendReturningFields(b []byte, fields []*Field) []byte {
-	b = append(b, " RETURNING "...)
-	b = appendColumns(b, "", fields)
 	return b
 }

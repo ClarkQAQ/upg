@@ -2,46 +2,37 @@ package orm
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"reflect"
 
 	"uw/upg/types"
 )
 
-var errModelNil = errors.New("pg: Model(nil)")
-
-type useQueryOne interface {
-	useQueryOne() bool
-}
-
-type HooklessModel interface {
-	// Init is responsible to initialize/reset model state.
-	// It is called only once no matter how many rows were returned.
-	Init() error
-
-	// NextColumnScanner returns a ColumnScanner that is used to scan columns
-	// from the current row. It is called once for every row.
-	NextColumnScanner() ColumnScanner
-
-	// AddColumnScanner adds the ColumnScanner to the model.
-	AddColumnScanner(ColumnScanner) error
-}
-
 type Model interface {
-	HooklessModel
+	Init() error
+	NextColumnScanner() ColumnScanner
+	AddColumnScanner(ColumnScanner) error
+	ScanColumn(col types.ColumnInfo, rd types.Reader, n int) error
+}
 
-	AfterScanHook
-	AfterSelectHook
+var _ = Model((*ModelDiscard)(nil))
 
-	BeforeInsertHook
-	AfterInsertHook
+type ModelDiscard struct{}
 
-	BeforeUpdateHook
-	AfterUpdateHook
+func (ModelDiscard) Init() error {
+	return nil
+}
 
-	BeforeDeleteHook
-	AfterDeleteHook
+func (m ModelDiscard) NextColumnScanner() ColumnScanner {
+	return m
+}
+
+func (m ModelDiscard) AddColumnScanner(ColumnScanner) error {
+	return nil
+}
+
+func (m ModelDiscard) ScanColumn(col types.ColumnInfo, rd types.Reader, n int) error {
+	return nil
 }
 
 func NewModel(value interface{}) (Model, error) {
@@ -59,8 +50,6 @@ func newModel(value interface{}, scan bool) (Model, error) {
 	switch value := value.(type) {
 	case Model:
 		return value, nil
-	case HooklessModel:
-		return newModelWithHookStubs(value), nil
 	case types.ValueScanner, sql.Scanner:
 		if !scan {
 			return nil, fmt.Errorf("pg: Model(unsupported %T)", value)
@@ -79,7 +68,7 @@ func newModel(value interface{}, scan bool) (Model, error) {
 	if v.IsNil() {
 		typ := v.Type().Elem()
 		if typ.Kind() == reflect.Struct {
-			return newStructTableModel(GetTable(typ)), nil
+			return newStructTableModel(reflect.New(typ)), nil
 		}
 		return nil, errModelNil
 	}
@@ -98,14 +87,14 @@ func newModel(value interface{}, scan bool) (Model, error) {
 	switch v.Kind() {
 	case reflect.Struct:
 		if v.Type() != timeType {
-			return newStructTableModelValue(v), nil
+			return newStructTableModel(v), nil
 		}
 	case reflect.Slice:
 		elemType := sliceElemType(v)
 		switch elemType.Kind() {
 		case reflect.Struct:
 			if elemType != timeType {
-				return newSliceTableModel(v, elemType), nil
+				return newSliceTableModel(v), nil
 			}
 		case reflect.Map:
 			if err := validMap(elemType); err != nil {
@@ -128,17 +117,6 @@ func newModel(value interface{}, scan bool) (Model, error) {
 		return nil, fmt.Errorf("pg: Model(unsupported %T)", value)
 	}
 	return Scan(value), nil
-}
-
-type modelWithHookStubs struct {
-	hookStubs
-	HooklessModel
-}
-
-func newModelWithHookStubs(m HooklessModel) Model {
-	return modelWithHookStubs{
-		HooklessModel: m,
-	}
 }
 
 func validMap(typ reflect.Type) error {

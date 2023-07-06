@@ -66,12 +66,12 @@ func (db *baseDB) BeginContext(ctx context.Context) (*Tx, error) {
 // RunInTransaction runs a function in a transaction. If function
 // returns an error transaction is rolled back, otherwise transaction
 // is committed.
-func (db *baseDB) RunInTransaction(ctx context.Context, fn func(*Tx) error) error {
+func (db *baseDB) Transaction(ctx context.Context, fn func(*Tx) error) error {
 	tx, err := db.BeginContext(ctx)
 	if err != nil {
 		return err
 	}
-	return tx.RunInTransaction(ctx, fn)
+	return tx.Transaction(ctx, fn)
 }
 
 // Begin returns current transaction. It does not start new transaction.
@@ -82,7 +82,7 @@ func (tx *Tx) Begin() (*Tx, error) {
 // RunInTransaction runs a function in the transaction. If function
 // returns an error transaction is rolled back, otherwise transaction
 // is committed.
-func (tx *Tx) RunInTransaction(ctx context.Context, fn func(*Tx) error) error {
+func (tx *Tx) Transaction(ctx context.Context, fn func(*Tx) error) error {
 	defer func() {
 		if err := recover(); err != nil {
 			if err := tx.RollbackContext(ctx); err != nil {
@@ -174,28 +174,6 @@ func (tx *Tx) exec(ctx context.Context, query interface{}, params ...interface{}
 	return res, lastErr
 }
 
-// ExecOne is an alias for DB.ExecOne.
-func (tx *Tx) ExecOne(query interface{}, params ...interface{}) (Result, error) {
-	return tx.execOne(tx.ctx, query, params...)
-}
-
-// ExecOneContext acts like ExecOne but additionally receives a context.
-func (tx *Tx) ExecOneContext(c context.Context, query interface{}, params ...interface{}) (Result, error) {
-	return tx.execOne(c, query, params...)
-}
-
-func (tx *Tx) execOne(c context.Context, query interface{}, params ...interface{}) (Result, error) {
-	res, err := tx.ExecContext(c, query, params...)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := internal.AssertOneRow(res.RowsAffected()); err != nil {
-		return nil, err
-	}
-	return res, nil
-}
-
 // Query is an alias for DB.Query.
 func (tx *Tx) Query(model interface{}, query interface{}, params ...interface{}) (Result, error) {
 	return tx.query(tx.ctx, model, query, params...)
@@ -241,51 +219,13 @@ func (tx *Tx) query(
 	return res, lastErr
 }
 
-// QueryOne is an alias for DB.QueryOne.
-func (tx *Tx) QueryOne(model interface{}, query interface{}, params ...interface{}) (Result, error) {
-	return tx.queryOne(tx.ctx, model, query, params...)
+// Model returns new query for the table name.
+func (tx *Tx) Table(table string, alias ...string) *Query {
+	return orm.NewQuery(tx).Table(table, alias...)
 }
 
-// QueryOneContext acts like QueryOne but additionally receives a context.
-func (tx *Tx) QueryOneContext(
-	c context.Context,
-	model interface{},
-	query interface{},
-	params ...interface{},
-) (Result, error) {
-	return tx.queryOne(c, model, query, params...)
-}
-
-func (tx *Tx) queryOne(
-	c context.Context,
-	model interface{},
-	query interface{},
-	params ...interface{},
-) (Result, error) {
-	mod, err := orm.NewModel(model)
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := tx.QueryContext(c, mod, query, params...)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := internal.AssertOneRow(res.RowsAffected()); err != nil {
-		return nil, err
-	}
-	return res, nil
-}
-
-// Model is an alias for DB.Model.
-func (tx *Tx) Model(model ...interface{}) *Query {
-	return orm.NewQuery(tx, model...)
-}
-
-// ModelContext acts like Model but additionally receives a context.
-func (tx *Tx) ModelContext(c context.Context, model ...interface{}) *Query {
-	return orm.NewQueryContext(c, tx, model...)
+func (tx *Tx) TableContext(c context.Context, table string, alias ...string) *Query {
+	return orm.NewQueryContext(c, tx).Table(table, alias...)
 }
 
 // CopyFrom is an alias for DB.CopyFrom.

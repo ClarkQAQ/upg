@@ -8,18 +8,6 @@ import (
 	"uw/upg/orm"
 )
 
-type (
-	BeforeScanHook   = orm.BeforeScanHook
-	AfterScanHook    = orm.AfterScanHook
-	AfterSelectHook  = orm.AfterSelectHook
-	BeforeInsertHook = orm.BeforeInsertHook
-	AfterInsertHook  = orm.AfterInsertHook
-	BeforeUpdateHook = orm.BeforeUpdateHook
-	AfterUpdateHook  = orm.AfterUpdateHook
-	BeforeDeleteHook = orm.BeforeDeleteHook
-	AfterDeleteHook  = orm.AfterDeleteHook
-)
-
 //------------------------------------------------------------------------------
 
 type dummyFormatter struct{}

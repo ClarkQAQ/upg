@@ -57,7 +57,9 @@ func isBadConn(err error, allowTimeout bool) (bool, string) {
 	}
 	if allowTimeout {
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			return !netErr.Temporary(), ""
+			// TODO: better way to detect timeout error
+			// return !netErr.Temporary(), ""
+			return true, ""
 		}
 	}
 	return true, ""

@@ -1,11 +1,5 @@
 package orm
 
-import (
-	"reflect"
-
-	"uw/upg/types"
-)
-
 type DeleteQuery struct {
 	q           *Query
 	placeholder bool
@@ -64,7 +58,7 @@ func (q *DeleteQuery) AppendQuery(fmter QueryFormatter, b []byte) (_ []byte, err
 	}
 
 	b = append(b, "DELETE FROM "...)
-	b, err = q.q.appendFirstTableWithAlias(fmter, b)
+	b, err = q.q.appendFirstTable(fmter, b)
 	if err != nil {
 		return nil, err
 	}
@@ -78,28 +72,10 @@ func (q *DeleteQuery) AppendQuery(fmter QueryFormatter, b []byte) (_ []byte, err
 	}
 
 	b = append(b, " WHERE "...)
-	value := q.q.tableModel.Value()
 
-	if q.q.isSliceModelWithData() {
-		if len(q.q.where) > 0 {
-			b, err = q.q.appendWhere(fmter, b)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			table := q.q.tableModel.Table()
-			err = table.checkPKs()
-			if err != nil {
-				return nil, err
-			}
-
-			b = appendColumnAndSliceValue(fmter, b, value, table.Alias, table.PKs)
-		}
-	} else {
-		b, err = q.q.mustAppendWhere(fmter, b)
-		if err != nil {
-			return nil, err
-		}
+	b, err = q.q.mustAppendWhere(fmter, b)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(q.q.returning) > 0 {
@@ -110,49 +86,4 @@ func (q *DeleteQuery) AppendQuery(fmter QueryFormatter, b []byte) (_ []byte, err
 	}
 
 	return b, q.q.stickyErr
-}
-
-func appendColumnAndSliceValue(
-	fmter QueryFormatter, b []byte, slice reflect.Value, alias types.Safe, fields []*Field,
-) []byte {
-	if len(fields) > 1 {
-		b = append(b, '(')
-	}
-	b = appendColumns(b, alias, fields)
-	if len(fields) > 1 {
-		b = append(b, ')')
-	}
-
-	b = append(b, " IN ("...)
-
-	isPlaceholder := isTemplateFormatter(fmter)
-	sliceLen := slice.Len()
-	for i := 0; i < sliceLen; i++ {
-		if i > 0 {
-			b = append(b, ", "...)
-		}
-
-		el := indirect(slice.Index(i))
-
-		if len(fields) > 1 {
-			b = append(b, '(')
-		}
-		for i, f := range fields {
-			if i > 0 {
-				b = append(b, ", "...)
-			}
-			if isPlaceholder {
-				b = append(b, '?')
-			} else {
-				b = f.AppendValue(b, el, 1)
-			}
-		}
-		if len(fields) > 1 {
-			b = append(b, ')')
-		}
-	}
-
-	b = append(b, ')')
-
-	return b
 }

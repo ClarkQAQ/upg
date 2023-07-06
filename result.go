@@ -41,13 +41,23 @@ func (res *result) parse(b []byte) error {
 }
 
 func (res *result) Model() orm.Model {
-	return res.model
+	if res != nil {
+		return res.model
+	}
+	return nil
 }
 
 func (res *result) RowsAffected() int {
-	return res.affected
+	if res != nil {
+		return res.affected
+	}
+
+	return -1
 }
 
 func (res *result) RowsReturned() int {
-	return res.returned
+	if res != nil {
+		return res.returned
+	}
+	return -1
 }

@@ -507,19 +507,10 @@ func appendQuery(fmter orm.QueryFormatter, dst []byte, query interface{}, params
 	switch query := query.(type) {
 	case orm.QueryAppender:
 		if v, ok := fmter.(*orm.Formatter); ok {
-			fmter = v.WithModel(query)
+			fmter = v.Clone()
 		}
 		return query.AppendQuery(fmter, dst)
 	case string:
-		if len(params) > 0 {
-			model, ok := params[len(params)-1].(orm.TableModel)
-			if ok {
-				if v, ok := fmter.(*orm.Formatter); ok {
-					fmter = v.WithTableModel(model)
-					params = params[:len(params)-1]
-				}
-			}
-		}
 		return fmter.FormatQuery(dst, query, params...), nil
 	default:
 		return nil, fmt.Errorf("pg: can't append %T", query)
@@ -845,12 +836,6 @@ func readDataRow(
 		return err
 	}
 
-	if h, ok := scanner.(orm.BeforeScanHook); ok {
-		if err := h.BeforeScan(ctx); err != nil {
-			return err
-		}
-	}
-
 	var firstErr error
 
 	for colIdx := int16(0); colIdx < numCol; colIdx++ {
@@ -882,12 +867,6 @@ func readDataRow(
 		}
 	}
 
-	if h, ok := scanner.(orm.AfterScanHook); ok {
-		if err := h.AfterScan(ctx); err != nil {
-			return err
-		}
-	}
-
 	return firstErr
 }
 
@@ -896,7 +875,11 @@ func newModel(mod interface{}) (orm.Model, error) {
 	if err != nil {
 		return nil, err
 	}
-	return m, m.Init()
+	if m != nil {
+		return m, m.Init()
+	}
+
+	return m, nil
 }
 
 func readSimpleQueryData(
@@ -925,7 +908,7 @@ func readSimpleQueryData(
 					if firstErr == nil {
 						firstErr = err
 					}
-					res.model = Discard
+					res.model = ModelDiscard
 				}
 			}
 		case dataRowMsg:
@@ -1009,7 +992,7 @@ func readExtQueryData(
 					if firstErr == nil {
 						firstErr = err
 					}
-					res.model = Discard
+					res.model = ModelDiscard
 				}
 			}
 

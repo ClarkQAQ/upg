@@ -2,11 +2,8 @@ package orm
 
 import (
 	"bytes"
-	"fmt"
 	"strconv"
 	"strings"
-
-	"uw/upg/types"
 )
 
 type SelectQuery struct {
@@ -81,7 +78,11 @@ func (q *SelectQuery) AppendQuery(fmter QueryFormatter, b []byte) (_ []byte, err
 			if i > 0 {
 				b = append(b, ", "...)
 			}
+
 			b, err = app.AppendQuery(fmter, b)
+			if err != nil {
+				return nil, err
+			}
 		}
 		b = append(b, ") "...)
 	} else if q.q.distinctOn != nil {
@@ -99,19 +100,10 @@ func (q *SelectQuery) AppendQuery(fmter QueryFormatter, b []byte) (_ []byte, err
 
 	if q.q.hasTables() {
 		b = append(b, " FROM "...)
-		b, err = q.appendTables(fmter, b)
+		b, err = q.q.appendTables(fmter, b)
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	err = q.q.forEachHasOneJoin(func(j *join) error {
-		b = append(b, ' ')
-		b, err = j.appendHasOneJoin(fmter, b, q.q)
-		return err
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	for _, j := range q.q.joins {
@@ -121,9 +113,9 @@ func (q *SelectQuery) AppendQuery(fmter QueryFormatter, b []byte) (_ []byte, err
 		}
 	}
 
-	if len(q.q.where) > 0 || q.q.isSoftDelete() {
+	if len(q.q.where) > 0 {
 		b = append(b, " WHERE "...)
-		b, err = q.q.appendWhere(fmter, b)
+		b, err = q.q.appendWhere(fmter, b, q.q.where)
 		if err != nil {
 			return nil, err
 		}
@@ -212,38 +204,14 @@ func (q *SelectQuery) AppendQuery(fmter QueryFormatter, b []byte) (_ []byte, err
 }
 
 func (q SelectQuery) appendColumns(fmter QueryFormatter, b []byte) (_ []byte, err error) {
-	start := len(b)
-
 	switch {
 	case q.q.columns != nil:
 		b, err = q.q.appendColumns(fmter, b)
 		if err != nil {
 			return nil, err
 		}
-	case q.q.hasExplicitTableModel():
-		table := q.q.tableModel.Table()
-		if len(table.Fields) > 10 && isTemplateFormatter(fmter) {
-			b = append(b, table.Alias...)
-			b = append(b, '.')
-			b = types.AppendString(b, fmt.Sprintf("%d columns", len(table.Fields)), 2)
-		} else {
-			b = appendColumns(b, table.Alias, table.Fields)
-		}
 	default:
 		b = append(b, '*')
-	}
-
-	err = q.q.forEachHasOneJoin(func(j *join) error {
-		if len(b) != start {
-			b = append(b, ", "...)
-			start = len(b)
-		}
-
-		b = j.appendHasOneColumns(b)
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	b = bytes.TrimSuffix(b, []byte(", "))
@@ -265,49 +233,6 @@ func (q *SelectQuery) isDistinct() bool {
 		}
 	}
 	return false
-}
-
-func (q *SelectQuery) appendTables(fmter QueryFormatter, b []byte) (_ []byte, err error) {
-	tables := q.q.tables
-
-	if q.q.modelHasTableName() {
-		table := q.q.tableModel.Table()
-		b = fmter.FormatQuery(b, string(table.SQLNameForSelects))
-		if table.Alias != "" {
-			b = append(b, " AS "...)
-			b = append(b, table.Alias...)
-		}
-
-		if len(tables) > 0 {
-			b = append(b, ", "...)
-		}
-	} else if len(tables) > 0 {
-		b, err = tables[0].AppendQuery(fmter, b)
-		if err != nil {
-			return nil, err
-		}
-		if q.q.modelHasTableAlias() {
-			b = append(b, " AS "...)
-			b = append(b, q.q.tableModel.Table().Alias...)
-		}
-
-		tables = tables[1:]
-		if len(tables) > 0 {
-			b = append(b, ", "...)
-		}
-	}
-
-	for i, f := range tables {
-		if i > 0 {
-			b = append(b, ", "...)
-		}
-		b, err = f.AppendQuery(fmter, b)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return b, nil
 }
 
 //------------------------------------------------------------------------------

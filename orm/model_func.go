@@ -9,6 +9,7 @@ var errorType = reflect.TypeOf((*error)(nil)).Elem()
 
 type funcModel struct {
 	Model
+
 	fnv  reflect.Value
 	fnIn []reflect.Value
 }
@@ -66,7 +67,7 @@ func newFuncModel(fn interface{}) *funcModel {
 		panic(fmt.Errorf("ForEach accepts a %s, got %s",
 			reflect.Struct, v0.Kind()))
 	}
-	m.Model = newStructTableModelValue(v0)
+	m.Model = newStructTableModel(v0)
 
 	return m
 }

@@ -11,7 +11,7 @@ import (
 )
 
 // Discard is used with Query and QueryOne to discard rows.
-var Discard orm.Discard
+var ModelDiscard orm.ModelDiscard
 
 // NullTime is a time.Time wrapper that marshals zero time as JSON null and
 // PostgreSQL NULL.
@@ -100,20 +100,16 @@ func ModelContext(c context.Context, model ...interface{}) *Query {
 
 // DBI is a DB interface implemented by *DB and *Tx.
 type DBI interface {
-	Model(model ...interface{}) *Query
-	ModelContext(c context.Context, model ...interface{}) *Query
+	Table(tableName string, alias ...string) *Query
+	TableContext(ctx context.Context, tableName string, alias ...string) *Query
 
 	Exec(query interface{}, params ...interface{}) (Result, error)
 	ExecContext(c context.Context, query interface{}, params ...interface{}) (Result, error)
-	ExecOne(query interface{}, params ...interface{}) (Result, error)
-	ExecOneContext(c context.Context, query interface{}, params ...interface{}) (Result, error)
 	Query(model, query interface{}, params ...interface{}) (Result, error)
 	QueryContext(c context.Context, model, query interface{}, params ...interface{}) (Result, error)
-	QueryOne(model, query interface{}, params ...interface{}) (Result, error)
-	QueryOneContext(c context.Context, model, query interface{}, params ...interface{}) (Result, error)
 
 	Begin() (*Tx, error)
-	RunInTransaction(ctx context.Context, fn func(*Tx) error) error
+	Transaction(ctx context.Context, fn func(*Tx) error) error
 
 	CopyFrom(r io.Reader, query interface{}, params ...interface{}) (Result, error)
 	CopyTo(w io.Writer, query interface{}, params ...interface{}) (Result, error)
@@ -129,10 +125,7 @@ var (
 // Strings is a type alias for a slice of strings.
 type Strings []string
 
-var (
-	_ orm.HooklessModel   = (*Strings)(nil)
-	_ types.ValueAppender = (*Strings)(nil)
-)
+var _ types.ValueAppender = (*Strings)(nil)
 
 // Init initializes the Strings slice.
 func (strings *Strings) Init() error {
@@ -183,10 +176,7 @@ func (strings Strings) AppendValue(dst []byte, quote int) ([]byte, error) {
 // Ints is a type alias for a slice of int64 values.
 type Ints []int64
 
-var (
-	_ orm.HooklessModel   = (*Ints)(nil)
-	_ types.ValueAppender = (*Ints)(nil)
-)
+var _ types.ValueAppender = (*Ints)(nil)
 
 // Init initializes the Int slice.
 func (ints *Ints) Init() error {
@@ -235,8 +225,6 @@ func (ints Ints) AppendValue(dst []byte, quote int) ([]byte, error) {
 
 // IntSet is a set of int64 values.
 type IntSet map[int64]struct{}
-
-var _ orm.HooklessModel = (*IntSet)(nil)
 
 // Init initializes the IntSet.
 func (set *IntSet) Init() error {

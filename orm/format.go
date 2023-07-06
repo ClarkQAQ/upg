@@ -31,7 +31,6 @@ var (
 	_ types.ValueAppender = (*SafeQueryAppender)(nil)
 )
 
-// nolint
 func SafeQuery(query string, params ...interface{}) *SafeQueryAppender {
 	return &SafeQueryAppender{query, params}
 }
@@ -121,15 +120,32 @@ func (a fieldAppender) AppendQuery(fmter QueryFormatter, b []byte) ([]byte, erro
 
 //------------------------------------------------------------------------------
 
+type tableAppender struct {
+	table string
+	alias string
+}
+
+var _ QueryAppender = (*tableAppender)(nil)
+
+func (a tableAppender) AppendQuery(fmter QueryFormatter, b []byte) ([]byte, error) {
+	if a.table != "" {
+		b = types.AppendIdent(b, a.table, 1)
+	}
+
+	if a.alias != "" {
+		b = append(b, " AS "...)
+		b = types.AppendIdent(b, a.alias, 1)
+	}
+
+	return b, nil
+}
+
+//------------------------------------------------------------------------------
+
 type dummyFormatter struct{}
 
 func (f dummyFormatter) FormatQuery(b []byte, query string, params ...interface{}) []byte {
 	return append(b, query...)
-}
-
-func isTemplateFormatter(fmter QueryFormatter) bool {
-	_, ok := fmter.(dummyFormatter)
-	return ok
 }
 
 //------------------------------------------------------------------------------
@@ -140,7 +156,6 @@ type QueryFormatter interface {
 
 type Formatter struct {
 	namedParams map[string]interface{}
-	model       TableModel
 }
 
 var _ QueryFormatter = (*Formatter)(nil)
@@ -170,10 +185,9 @@ func (f *Formatter) String() string {
 	return " " + strings.Join(ss, " ")
 }
 
-func (f *Formatter) clone() *Formatter {
+func (f *Formatter) Clone() *Formatter {
 	cp := NewFormatter()
 
-	cp.model = f.model
 	if len(f.namedParams) > 0 {
 		cp.namedParams = make(map[string]interface{}, len(f.namedParams))
 	}
@@ -184,25 +198,6 @@ func (f *Formatter) clone() *Formatter {
 	return cp
 }
 
-func (f *Formatter) WithTableModel(model TableModel) *Formatter {
-	cp := f.clone()
-	cp.model = model
-	return cp
-}
-
-func (f *Formatter) WithModel(model interface{}) *Formatter {
-	switch model := model.(type) {
-	case TableModel:
-		return f.WithTableModel(model)
-	case *Query:
-		return f.WithTableModel(model.tableModel)
-	case QueryCommand:
-		return f.WithTableModel(model.Query().tableModel)
-	default:
-		panic(fmt.Errorf("pg: unsupported model %T", model))
-	}
-}
-
 func (f *Formatter) setParam(param string, value interface{}) {
 	if f.namedParams == nil {
 		f.namedParams = make(map[string]interface{})
@@ -211,7 +206,7 @@ func (f *Formatter) setParam(param string, value interface{}) {
 }
 
 func (f *Formatter) WithParam(param string, value interface{}) *Formatter {
-	cp := f.clone()
+	cp := f.Clone()
 	cp.setParam(param, value)
 	return cp
 }
@@ -221,7 +216,7 @@ func (f *Formatter) Param(param string) interface{} {
 }
 
 func (f *Formatter) hasParams() bool {
-	return len(f.namedParams) > 0 || f.model != nil
+	return len(f.namedParams) > 0
 }
 
 func (f *Formatter) FormatQueryBytes(dst, query []byte, params ...interface{}) []byte {
@@ -240,11 +235,10 @@ func (f *Formatter) FormatQuery(dst []byte, query string, params ...interface{})
 
 func (f *Formatter) append(dst []byte, p *parser.Parser, params []interface{}) []byte {
 	var paramsIndex int
-	var namedParamsOnce bool
-	var tableParams *tableParams
 
 	for p.Valid() {
 		b, ok := p.ReadSep('?')
+
 		if !ok {
 			dst = append(dst, b...)
 			continue
@@ -254,6 +248,7 @@ func (f *Formatter) append(dst []byte, p *parser.Parser, params []interface{}) [
 			dst = append(dst, '?')
 			continue
 		}
+
 		dst = append(dst, b...)
 
 		id, numeric := p.ReadIdentifier()
@@ -276,25 +271,6 @@ func (f *Formatter) append(dst []byte, p *parser.Parser, params []interface{}) [
 				param, paramOK := f.namedParams[id]
 				if paramOK {
 					dst = f.appendParam(dst, param)
-					continue
-				}
-			}
-
-			if !namedParamsOnce && len(params) > 0 {
-				namedParamsOnce = true
-				tableParams, _ = newTableParams(params[len(params)-1])
-			}
-
-			if tableParams != nil {
-				dst, ok = tableParams.AppendParam(f, dst, id)
-				if ok {
-					continue
-				}
-			}
-
-			if f.model != nil {
-				dst, ok = f.model.AppendParam(f, dst, id)
-				if ok {
 					continue
 				}
 			}

@@ -6,7 +6,6 @@ import (
 
 	"uw/upg/internal"
 	"uw/upg/internal/pool"
-	"uw/upg/orm"
 	"uw/upg/types"
 )
 
@@ -116,30 +115,6 @@ func (stmt *Stmt) exec(ctx context.Context, params ...interface{}) (Result, erro
 	return res, lastErr
 }
 
-// ExecOne acts like Exec, but query must affect only one row. It
-// returns ErrNoRows error when query returns zero rows or
-// ErrMultiRows when query returns multiple rows.
-func (stmt *Stmt) ExecOne(params ...interface{}) (Result, error) {
-	return stmt.execOne(context.Background(), params...)
-}
-
-// ExecOneContext acts like ExecOne but additionally receives a context.
-func (stmt *Stmt) ExecOneContext(c context.Context, params ...interface{}) (Result, error) {
-	return stmt.execOne(c, params...)
-}
-
-func (stmt *Stmt) execOne(c context.Context, params ...interface{}) (Result, error) {
-	res, err := stmt.ExecContext(c, params...)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := internal.AssertOneRow(res.RowsAffected()); err != nil {
-		return nil, err
-	}
-	return res, nil
-}
-
 // Query executes a prepared query statement with the given parameters.
 func (stmt *Stmt) Query(model interface{}, params ...interface{}) (Result, error) {
 	return stmt.query(context.Background(), model, params...)
@@ -179,35 +154,6 @@ func (stmt *Stmt) query(ctx context.Context, model interface{}, params ...interf
 		return nil, err
 	}
 	return res, lastErr
-}
-
-// QueryOne acts like Query, but query must return only one row. It
-// returns ErrNoRows error when query returns zero rows or
-// ErrMultiRows when query returns multiple rows.
-func (stmt *Stmt) QueryOne(model interface{}, params ...interface{}) (Result, error) {
-	return stmt.queryOne(context.Background(), model, params...)
-}
-
-// QueryOneContext acts like QueryOne but additionally receives a context.
-func (stmt *Stmt) QueryOneContext(c context.Context, model interface{}, params ...interface{}) (Result, error) {
-	return stmt.queryOne(c, model, params...)
-}
-
-func (stmt *Stmt) queryOne(c context.Context, model interface{}, params ...interface{}) (Result, error) {
-	mod, err := orm.NewModel(model)
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := stmt.QueryContext(c, mod, params...)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := internal.AssertOneRow(res.RowsAffected()); err != nil {
-		return nil, err
-	}
-	return res, nil
 }
 
 // Close closes the statement.
